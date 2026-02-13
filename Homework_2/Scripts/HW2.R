@@ -8,7 +8,6 @@ library(forcats)
 library(tibble)
 library(scales)
 
-# Step 1
 file_a <- "texts/A07594__Circle_of_Commerce.txt"
 file_b <- "texts/B14801__Free_Trade.txt"
 
@@ -44,14 +43,12 @@ doc_lenghts <- word_counts %>%
   summarise(total_words = sum(n))
 doc_lenghts
 
-# Step 2
 bing_lexicon <- get_sentiments("bing")
 
 sentiment_words <- word_counts %>%
   inner_join(bing_lexicon, by = "word")
 sentiment_words
 
-# Step 3
 sentiment_totals <- sentiment_words %>%
   group_by(doc_title) %>%
   summarise(
@@ -61,17 +58,14 @@ sentiment_totals <- sentiment_words %>%
   )
 sentiment_totals
 
-# Step 4
 word_tfidf <- word_counts %>%
   bind_tf_idf(word, doc_title, n)
 word_tfidf
 
-# Step 5
 tfidf_sentiment <- word_tfidf %>%
   inner_join(bing_lexicon, by = "word")
 tfidf_sentiment
 
-# Step 6
 tfidf_sentiment_totals <- tfidf_sentiment %>%
   group_by(doc_title) %>%
   summarise(
@@ -81,9 +75,20 @@ tfidf_sentiment_totals <- tfidf_sentiment %>%
   )
 tfidf_sentiment_totals
 
-# III. Compare Raw vs. TF-IDF Sentiment
 final_comparison <- sentiment_totals %>%
   left_join(tfidf_sentiment_totals, by = "doc_title")
 final_comparison
 
 write_csv(final_comparison, "sentiment_comparison.csv")
+
+top_drivers <- tfidf_sentiment %>%
+  mutate(
+    sentiment_contribution = ifelse(sentiment == "positive", tf_idf, -tf_idf)
+  ) %>%
+  group_by(doc_title) %>%
+  slice_max(abs(sentiment_contribution), n = 10) %>%
+  ungroup() %>%
+  arrange(doc_title, desc(abs(sentiment_contribution)))
+
+print("Top 10 sentiment-driving words by TF-IDF for each document:")
+print(top_drivers %>% select(doc_title, word, n, tf_idf, sentiment, sentiment_contribution))
